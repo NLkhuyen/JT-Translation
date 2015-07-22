@@ -1,27 +1,36 @@
 package com.example.lkhuyen.myapplicationtesseract;
 
+import info.androidhive.slidingmenu.adapter.NavDrawerListAdapter;
+import info.androidhive.slidingmenu.model.NavDrawerItem;
+
+import java.util.ArrayList;
+
+import org.opencv.android.OpenCVLoader;
 
 import android.content.res.Configuration;
+import android.graphics.Color;
+import android.os.Bundle;
+import android.os.Environment;
+import android.support.v4.app.Fragment;
+import android.support.v4.app.FragmentTransaction;
 import android.support.v4.widget.DrawerLayout;
 import android.support.v7.app.ActionBarActivity;
-import android.os.Bundle;
 import android.support.v7.app.ActionBarDrawerToggle;
 import android.util.Log;
-import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 import android.widget.AdapterView;
-import android.widget.ArrayAdapter;
+import android.widget.AdapterView.OnItemClickListener;
+import android.widget.ImageView;
 import android.widget.ListView;
-import android.widget.SearchView;
-import android.widget.Toast;
 
+import com.example.FragmentCustom.ResultFragmentActivity;
+import com.example.FragmentCustom.SettingFragment;
+import com.example.data.MySingleton;
+import com.example.database.DbHelper;
+import com.example.lkhuyen.myapplicationtesseract.R;
 import com.googlecode.tesseract.android.TessBaseAPI;
-
-import org.opencv.android.OpenCVLoader;
-import org.opencv.core.Mat;
-import org.opencv.highgui.Highgui;
-
+import com.javacodegeeks.androidcameraexample2.DetailFragment;
 
 public class MainActivity extends ActionBarActivity {
 
@@ -31,36 +40,131 @@ public class MainActivity extends ActionBarActivity {
         }
     }
 
+    ImageView image;
 
-    private ListView mDrawerList;
-    private ArrayAdapter<String> mAdapter;
+    public static final String lang = "jpn";
 
+    String[] menu;
+    DrawerLayout dLayout;
+    ListView dList;
+    NavDrawerListAdapter adapter;
     private ActionBarDrawerToggle mDrawerToggle;
-    private DrawerLayout mDrawerLayout;
-    private String mActivityTitle;
+    DbHelper db;
+
+    public static final String DATA_PATH = Environment
+            .getExternalStorageDirectory().toString() + "/KanjiReader/";
+
+//	Animation zoom_outAnim;
 
     @Override
-    protected void onCreate(Bundle savedInstanceState) {
+    public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
         getSupportActionBar().setDisplayHomeAsUpEnabled(true);
         getSupportActionBar().setHomeButtonEnabled(true);
 
-        mDrawerList = (ListView)findViewById(R.id.navList);
+        db = new DbHelper(getApplicationContext());
+        TessBaseAPI tess = new TessBaseAPI();
+        tess.setDebug(true);
+        tess.init(DATA_PATH, lang);
+        MySingleton.getInstance().extraTextTesseract = tess;
+        MySingleton.getInstance().db = db;
+        // image = (ImageView) findViewById(R.id.imageView1);
+        slideMenu();
+        onFirstRun();
 
-        mDrawerLayout = (DrawerLayout)findViewById(R.id.drawer_layout);
-        mActivityTitle = getTitle().toString();
+    }
 
-        addDrawerItems();
+    @Override
+    protected void onPostCreate(Bundle savedInstanceState) {
+        super.onPostCreate(savedInstanceState);
+        // Sync the toggle state after onRestoreInstanceState has occurred.
+        mDrawerToggle.syncState();
+    }
 
-        mDrawerList.setOnItemClickListener(new AdapterView.OnItemClickListener() {
-            @Override
-            public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
-                Toast.makeText(MainActivity.this, "Time for an upgrade!", Toast.LENGTH_SHORT).show();
-            }
-        });
+    @Override
+    public void onConfigurationChanged(Configuration newConfig) {
+        super.onConfigurationChanged(newConfig);
+        // Pass any configuration change to the drawer toggls
+        mDrawerToggle.onConfigurationChanged(newConfig);
+    }
 
-        mDrawerToggle = new ActionBarDrawerToggle(this, mDrawerLayout,
+
+    @Override
+    public boolean onOptionsItemSelected(MenuItem item) {
+        // toggle nav drawer on selecting action bar app icon/title
+        if (mDrawerToggle.onOptionsItemSelected(item)) {
+            return true;
+        }
+        // Handle action bar actions click
+        switch (item.getItemId()) {
+            case R.id.search:
+                return true;
+            default:
+                return super.onOptionsItemSelected(item);
+        }
+    }
+
+//	@Override
+//	public boolean onCreateOptionsMenu(Menu menu) {
+//		MenuInflater searchItem = getMenuInflater();
+//		searchItem.inflate(R.menu.main, menu);
+//
+//		// Associate searchable configuration with the SearchView
+//		SearchManager searchManager = (SearchManager) getSystemService(Context.SEARCH_SERVICE);
+//		SearchView mSearchView = (SearchView) menu.findItem(R.id.search)
+//				.getActionView();
+//		mSearchView.setSearchableInfo(searchManager
+//				.getSearchableInfo(getComponentName()));
+//
+//		mSearchView
+//				.setOnQueryTextListener(new SearchView.OnQueryTextListener() {
+//					@Override
+//					public boolean onQueryTextSubmit(String s) {
+//						Log.w("SEARCH", "Search: " + s);
+//						return false;
+//					}
+//
+//					@Override
+//					public boolean onQueryTextChange(String s) {
+//						Log.w("SEARCH", "Typing: " + s);
+//						return false;
+//					}
+//				});
+//		return true;
+//	}
+
+    public void onFirstRun() {
+        Bundle bun = new Bundle();
+        bun.putString("Menu", "Camera");
+        bun.putString("DATA_PATH", DATA_PATH);
+        bun.putString("lang", lang);
+        Fragment detail = new DetailFragment();
+        detail.setArguments(bun);
+        FragmentTransaction fragmentManager = getSupportFragmentManager()
+                .beginTransaction();
+        fragmentManager.replace(R.id.content_frame, detail).commit();
+    }
+
+    @SuppressWarnings("deprecation")
+    public void slideMenu() {
+        menu = new String[] { "Home", "Android", "Windows", "Linux",
+                "Raspberry Pi", "WordPress", "Setting", "Dictionary Screen", "Camera" };
+        dLayout = (DrawerLayout) findViewById(R.id.drawer_layout);
+        ArrayList<NavDrawerItem> arr = new ArrayList<NavDrawerItem>();
+        for (int i = 0; i < menu.length; i++) {
+            arr.add(new NavDrawerItem(menu[i], R.drawable.ic_launcher));
+        }
+        dLayout.setScrimColor(Color.TRANSPARENT);
+        dList = (ListView) findViewById(R.id.left_drawer);
+        dList.setSelector(android.R.color.holo_blue_dark);
+
+
+        adapter = new NavDrawerListAdapter(this, arr);
+
+        dList.setAdapter(adapter);
+
+        mDrawerToggle = new ActionBarDrawerToggle(this, dLayout,
                 R.string.drawer_open, R.string.drawer_close) {
 
             /** Called when a drawer has settled in a completely open state. */
@@ -73,86 +177,53 @@ public class MainActivity extends ActionBarActivity {
             /** Called when a drawer has settled in a completely closed state. */
             public void onDrawerClosed(View view) {
                 super.onDrawerClosed(view);
-                getSupportActionBar().setTitle(mActivityTitle);
+                getSupportActionBar().setTitle(getTitle().toString());
                 invalidateOptionsMenu(); // creates call to onPrepareOptionsMenu()
             }
         };
 
         mDrawerToggle.setDrawerIndicatorEnabled(true);
-        mDrawerLayout.setDrawerListener(mDrawerToggle);
+        dLayout.setDrawerListener(mDrawerToggle);
 
+        dList.setOnItemClickListener(new OnItemClickListener() {
 
+            @Override
+            public void onItemClick(AdapterView<?> arg0, View v, int position,
+                                    long id) {
 
+                dLayout.closeDrawers();
+                Bundle args = new Bundle();
+                if (position < menu.length) {
+                    args.putString("Menu", menu[position]);
+                } else {
+                    args.putString("Menu", menu[position % menu.length]);
+                }
+                args.putString("DATA_PATH", DATA_PATH);
+                args.putString("lang", lang);
+                Fragment detail;
+                if (menu[position % menu.length].equalsIgnoreCase("Setting")) {
+                    Fragment fragment = new SettingFragment();
+                    FragmentTransaction fragmentManager = getSupportFragmentManager()
+                            .beginTransaction();
+                    fragmentManager.replace(R.id.content_frame, fragment)
+                            .commit();
+                } else if(menu[position % menu.length].equalsIgnoreCase("Dictionary Screen")){
+                    Fragment fragment = new ResultFragmentActivity();
+                    FragmentTransaction fragmentManager = getSupportFragmentManager()
+                            .beginTransaction();
+                    fragmentManager.replace(R.id.content_frame, fragment)
+                            .commit();
+                }else{
+                    detail = new DetailFragment();
+                    detail.setArguments(args);
+                    FragmentTransaction fragmentManager = getSupportFragmentManager()
+                            .beginTransaction();
+                    fragmentManager.replace(R.id.content_frame, detail)
+                            .commit();
+                }
+            }
 
-        Mat mat = new Mat();
-        Highgui hi = new Highgui();
-        TessBaseAPI tess = new TessBaseAPI();
+        });
     }
 
-    private void addDrawerItems() {
-        String[] osArray = { "Android", "iOS", "Windows", "OS X", "Linux" };
-        mAdapter = new ArrayAdapter<String>(this, android.R.layout.simple_list_item_1, osArray);
-        mDrawerList.setAdapter(mAdapter);
-    }
-
-
-    @Override
-    public boolean onCreateOptionsMenu(Menu menu) {
-        // Inflate the menu; this adds items to the action bar if it is present.
-        getMenuInflater().inflate(R.menu.menu_main, menu);
-
-        // Associate searchable configuration with the SearchView
-        MenuItem searchItem = menu.findItem(R.id.search);
-        searchItem.setIcon(android.R.drawable.ic_menu_search);
-        searchItem.setShowAsAction(MenuItem.SHOW_AS_ACTION_IF_ROOM);
-        SearchView mSearchView = new SearchView(getApplication());
-        mSearchView
-                .setOnQueryTextListener(new SearchView.OnQueryTextListener() {
-                    @Override
-                    public boolean onQueryTextSubmit(String s) {
-                        Log.w("SEARCH", "Search in fragment: " + s);
-                        return false;
-                    }
-
-                    @Override
-                    public boolean onQueryTextChange(String s) {
-                        Log.w("SEARCH", "Typing in fragment: " + s);
-                        return false;
-                    }
-                });
-        searchItem.setActionView(mSearchView);
-
-        return true;
-    }
-
-    @Override
-    protected void onPostCreate(Bundle savedInstanceState) {
-        super.onPostCreate(savedInstanceState);
-        mDrawerToggle.syncState();
-    }
-
-    @Override
-    public void onConfigurationChanged(Configuration newConfig) {
-        super.onConfigurationChanged(newConfig);
-        mDrawerToggle.onConfigurationChanged(newConfig);
-    }
-
-    @Override
-    public boolean onOptionsItemSelected(MenuItem item) {
-        // Handle action bar item clicks here. The action bar will
-        // automatically handle clicks on the Home/Up button, so long
-        // as you specify a parent activity in AndroidManifest.xml.
-        int id = item.getItemId();
-
-        if (mDrawerToggle.onOptionsItemSelected(item)) {
-            return true;
-        }
-
-        //noinspection SimplifiableIfStatement
-        if (id == R.id.search) {
-            return true;
-        }
-
-        return super.onOptionsItemSelected(item);
-    }
 }
